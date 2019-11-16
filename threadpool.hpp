@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <sstream>
 #include <thread>
@@ -19,8 +20,8 @@ class ThreadTask
 {
 
   private:
-    int _data;
-    handler_t _handler;
+    int _data;              //参数
+    handler_t _handler;     //任务
 
   public:
     //构造

@@ -1,4 +1,5 @@
 //封装套接字管理类
+#pragma once
 #include <iostream>
 #include <string>
 #include <stdio.h>
@@ -27,7 +28,7 @@ class TcpSocket
     void SetFd(int fd);
 
     //设置非阻塞
-    void SetNonoBlock();
+    void SetNonBlock();
 
     //获取通信套接字，通过sock返回，并且设置其为非阻塞
     bool Accept(TcpSocket& sock);
@@ -37,7 +38,9 @@ class TcpSocket
 
     //获取指定长度的数据，如果缓冲区中数据不足则阻塞一直读取
     bool Recv(std::string& buf, int len);
-
+  
+    //关闭套接字
+    bool Close();
   private:
     int _sockfd;
 };
@@ -96,7 +99,7 @@ void TcpSocket::SetFd(int fd)
   _sockfd = fd;
 }
 
-void TcpSocket::SetNonoBlock()
+void TcpSocket::SetNonBlock()
 {
   int nowFlag = fcntl(_sockfd, F_GETFL, 0);
   fcntl(_sockfd, F_SETFL, nowFlag | O_NONBLOCK);
@@ -113,7 +116,7 @@ bool TcpSocket::Accept(TcpSocket& sock)
     return false;
   }
   sock.SetFd(clientSock);
-  sock.SetNonoBlock();
+  sock.SetNonBlock();
   return true;
 }
 
@@ -156,4 +159,9 @@ bool TcpSocket::Recv(std::string& buf, int len)
     rlen += ret;
   }
   return true;
+}
+
+bool TcpSocket::Close()
+{
+  close(_sockfd);
 }
