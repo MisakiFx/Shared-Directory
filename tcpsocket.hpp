@@ -38,6 +38,18 @@ class TcpSocket
 
     //获取指定长度的数据，如果缓冲区中数据不足则阻塞一直读取
     bool Recv(std::string& buf, int len);
+
+    //发送数据
+    bool Send(const std::string& buf)
+    {
+      int ret = send(_sockfd, &buf[0], buf.size(), 0);
+      if(ret < 0)
+      {
+        std::cerr << "Send Error" << std::endl;
+        return false;
+      }
+      return true;
+    }
   
     //关闭套接字
     bool Close();

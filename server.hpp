@@ -109,9 +109,15 @@ void Server::ThreadHandler(int sockfd)
 
 bool Server::HttpProcess(HttpRequest& req, HttpResponse& rsp)
 {
-  rsp._status = 200;
-  rsp._body = "<html>Hello World</html>";
-  rsp.SetHeader("Content-Length", std::to_string(rsp._body.size()));
-  rsp.SetHeader("Content-Type", "text/html");
+  //请求分析，执行请求，组织响应信息
+  //文件上传请求
+  if(req._method == "GET" && req._param.size() != 0 || req._method == "POST")
+  {
+    
+  }
+  else //文件下载或者目录列表请求
+  {
+
+  }
   return true;
 }

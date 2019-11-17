@@ -22,7 +22,7 @@ class HttpRequest
 
     bool PathLegal();
 
-  private:
+  public:
     std::string _method;                                //请求方法
     std::string _path;                                  //路径信息
     std::unordered_map<std::string, std::string> _param;//参数信息
@@ -45,12 +45,28 @@ class HttpResponse
     //设置_headers接口
     bool SetHeader(const std::string& key, const std::string& value);
 
+  private:
+    //获取返回状态码的描述
+    std::string GetDesc();
   public:
     int _status;                                              //状态信息
     std::string _body;                                         //正文信息
     std::unordered_map<std::string, std::string> _headers;    //头部信息
 };
 /****************************************************************/
+std::string HttpResponse::GetDesc()
+{
+  switch(_status)
+  {
+    case 400:
+      return "Bad Request";
+    case 404:
+      return "Not Found";
+    case 200:
+      return "OK";
+  }
+  return "UnKnow";
+}
 int HttpRequest::RequestParse(TcpSocket& sock)
 {
   //1、获取HTTP首行+头部
@@ -178,7 +194,20 @@ bool HttpResponse::NormalProcess(TcpSocket& sock)
   std::string line;
   std::string header;
   std::stringstream tmp;
-  tmp << "HTTP/1.1" << " " << _status;
+  tmp << "HTTP/1.1" << " " << _status << " " << GetDesc();
+  tmp << "\r\n";
+  if(_headers.find("Content-Length") == _headers.end())
+  {
+    std::string len = std::to_string(_body.size());
+    _headers["Content-Length"] = len;
+  }
+  for(auto e : _headers)
+  {
+    tmp << e.first << ": " << e.second << "\r\n";
+  }
+  tmp << "\r\n";
+  sock.Send(tmp.str());
+  sock.Send(_body);
   return true;
 }
 bool HttpResponse::SetHeader(const std::string& key, const std::string& value)
