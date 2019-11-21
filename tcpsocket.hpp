@@ -145,7 +145,7 @@ bool TcpSocket::RecvPeek(std::string& buf)
     {
       return true;
     }
-    std::cerr << "recv error, conect maybe lost!" << std::endl;
+    std::cerr << "recv error, connect maybe lost!" << std::endl;
     return false;
   }
   buf.assign(tmp, ret);

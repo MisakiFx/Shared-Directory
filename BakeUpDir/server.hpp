@@ -133,10 +133,7 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
     //目录列表请求
     if(boost::filesystem::is_directory(realPath))
     {
-      if(ListShow(realPath, rsp._body) == false)
-      {
-        return false;
-      }
+      ListShow(realPath, rsp._body);
       rsp.SetHeader("Content-Type", "text/html");
     }
     //文件下载请求
@@ -150,13 +147,6 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
 
 bool Server::ListShow(const std::string& path, std::string& body)
 {
-  std::string root = ROOT;
-  size_t pos = path.find(root);
-  if(pos == std::string::npos)
-  {
-    return false;
-  }
-  std::string jumpPath = path.substr(root.size());
   std::stringstream ss;
   ss << "<html><head><style>";
   ss << "*{margin : 0;}";
@@ -174,31 +164,16 @@ bool Server::ListShow(const std::string& path, std::string& body)
   for(; begin != end; ++begin)
   {
     std::string name = begin->path().filename().string();
-    std::string uri = jumpPath + name;
-    //如果目录中还是目录
-    if(boost::filesystem::is_directory(begin->path()))
-    {
-      ss << "<li><strong><a href='" << uri;
-      ss << "'>" << name << "/" << "</a><br /></strong>";
-      ss << "<small>";
-      ss << "filetype:directory";
-      ss << "</small></li>";
-    }
-    //普通文件处理
-    else 
-    {
-      int64_t mtime = boost::filesystem::last_write_time(begin->path());
-      int64_t size = boost::filesystem::file_size(begin->path());
-      //std::cout << "name:[" << name << "]" << std::endl;
-      //std::cout << "mtime:[" << mtime << "]" << std::endl;
-      //std::cout << "size:[" << size << "]" << std::endl;
-      ss << "<li><strong><a href='" << uri;
-      ss << "'>" << name << "</a><br /></strong>";
-      ss << "<small>modified:" << mtime;
-      ss << "<br/> filetype:application-oct-ostream " << size / 1024 << "kb";
-      ss << "</small></li>";
-    }
+    int64_t mtime = boost::filesystem::last_write_time(begin->path());
+    int64_t size = boost::filesystem::file_size(begin->path());
+    std::cout << "name:[" << name << "]" << std::endl;
+    std::cout << "mtime:[" << mtime << "]" << std::endl;
+    std::cout << "size:[" << size << "]" << std::endl;
   }
+  ss << "<li><strong><a href='#'>a.txt</a><br /></strong>";
+  ss << "<small>modified:Thu Nov 21 04:45:51 PST 2019";
+  ss << "<br/> filetype:application-ostream 16kb";
+  ss << "</small></li>";
 
   ss << "</ol></div><hr /></div></body></html>";
   body = ss.str();
