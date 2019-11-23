@@ -27,7 +27,7 @@ class HttpRequest
     std::string _path;                                  //路径信息
     std::unordered_map<std::string, std::string> _param;//参数信息
     std::unordered_map<std::string, std::string> _headers; //头信息
-    std::string body;                                   //正文信息
+    std::string _body;                                   //正文信息
 };
 /*****************************************************************/
 
@@ -112,6 +112,16 @@ int HttpRequest::RequestParse(TcpSocket& sock)
   //{
   //  std::cout << e.first << "=" << e.second << std::endl;
   //}
+  //6、接收正文信息
+  auto it = _headers.find("Content-Length");
+  if(it != _headers.end())
+  {
+    std::stringstream tmp;
+    tmp << it->second;
+    int64_t fileLen;
+    tmp >> fileLen;
+    sock.Recv(_body, fileLen);
+  }
   return 200;
 }
 

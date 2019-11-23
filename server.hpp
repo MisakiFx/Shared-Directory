@@ -1,6 +1,7 @@
 //实现Server类，完成服务端整体架构流程
 #pragma once
 #include <vector>
+#include <stdlib.h>
 #include "tcpsocket.hpp"
 #include "epollwait.hpp"
 #include "threadpool.hpp"
@@ -25,6 +26,9 @@ class Server
 
     //目录列表请求
     static bool ListShow(const std::string& path, std::string& body);
+
+    //利用外部程序解析上传文件时的正文数据，拿到文件数据
+    static bool CGIProcess(const HttpRequest& req, HttpResponse& rsp);
   private:
 
     TcpSocket _lst_sock;  //监听套接字
@@ -120,12 +124,18 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
   if(!boost::filesystem::exists(realPath))
   {
     rsp._status = 404;
+    std::cerr << "no file" << std::endl;
     return false;
   }
+  //文件上传请求
   if(req._method == "GET" && req._param.size() != 0 || req._method == "POST")
   {
-
-
+    //for(auto e : req._headers)
+    //{
+    //  std::cout << e.first << ": " << e.second << std::endl;
+    //}
+    //std::cout << "body:[" << req._body << "]" << std::endl;
+    CGIProcess(req, rsp);
   }
   //文件下载或者目录列表请求
   else 
@@ -135,6 +145,7 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
     {
       if(ListShow(realPath, rsp._body) == false)
       {
+        std::cerr << "wrong file path" << std::endl;
         return false;
       }
       rsp.SetHeader("Content-Type", "text/html");
@@ -145,6 +156,70 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
 
     }
   }
+  rsp._status = 200;
+  return true;
+}
+
+bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
+{
+  //创建两个管道负责进程间通讯
+  //pipe_in负责父进程从中读取子进程数据
+  //pipe_out负责父进程向子进程发送数据
+  int pipe_in[2], pipe_out[2];
+  if(pipe(pipe_in) < 0 || pipe(pipe_out) < 0)
+  {
+    std::cerr << "create pipe error" << std::endl;
+    return false;
+  }
+  //利用子进程解析正文
+  int pid = fork();
+  if(pid < 0)
+  {
+    return false;
+  }
+  else if(pid == 0)
+  {
+    close(pipe_in[0]);
+    close(pipe_out[1]);
+    //为了让子进程在进程替换后依然可以找到管道，
+    //直接用重定向将标准输入重定向到pipe_out管道读端
+    //将标准输出重定向到pipe_in的写端
+    dup2(pipe_out[0], 0);
+    dup2(pipe_in[1], 1);
+    
+    //为了让正文数据和头部信息不混乱，避免再次解析，我们使用两种手段分别传输两个数据
+    //用环境变量传输req的头部信息
+    //用管道传输req的正文信息
+    //设置环境变量
+    setenv("METHOD", req._method.c_str(), 1);
+    setenv("PATH", req._path.c_str(), 1);
+    for(auto e : req._headers)
+    {
+      setenv(e.first.c_str(), e.second.c_str(), 1);
+    }
+
+    std::string realPath = ROOT + req._path;
+    execl(realPath.c_str(), realPath.c_str(), nullptr);
+    exit(0);
+  }
+  close(pipe_in[1]);
+  close(pipe_out[0]);
+  //通过管道写入正文
+  write(pipe_out[1], &req._body[0], req._body.size());
+  while(1)
+  {
+    char buf[1024] = {0};
+    int ret = read(pipe_in[0], buf, 1024);
+    //没有人向管道里写数据
+    if(ret == 0)
+    {
+      break;
+    }
+    buf[ret] = '\0';
+    rsp._body += buf;
+  }
+  close(pipe_in[0]);
+  close(pipe_out[1]);
   return true;
 }
 
@@ -161,11 +236,17 @@ bool Server::ListShow(const std::string& path, std::string& body)
   ss << "<html><head><style>";
   ss << "*{margin : 0;}";
   ss << ".main-window {height : 100%;width : 80%;margin: 0 auto;}";
-  ss << ".upload {position : relative;height : 20%;width : 100%;background-color : rgb(253, 224, 255)}";
+  ss << ".upload {position : relative;height : 20%;width : 100%;background-color : rgb(253, 224, 255); text-align : center;}";
   ss << ".listshow {position : relative;height : 80%;width : 100%;background : rgb(212, 241, 241)}";
   ss << "</style></head>";
   ss << "<body><div class='main-window'>";
-  ss << "<div class='upload'></div><hr />";
+  ss << "<div class='upload'>";
+  ss << "<form action='/upload' method='POST' enctype='multipart/form-data'>";
+  ss << "<div class='upload-btn'>";
+  ss << "<input type='file' name='fileupload'>";
+  ss << "<input type='submit' name='submit'>";
+  ss << "</div></form>";
+  ss << "</div><hr />";
   ss << "<div class='listshow'><ol>";
   
   //组织结点信息
