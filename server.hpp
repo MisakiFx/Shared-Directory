@@ -119,7 +119,6 @@ void Server::ThreadHandler(int sockfd)
 bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
 {
   //请求分析，执行请求，组织响应信息
-  //文件上传请求
   std::string realPath = ROOT + req._path;
   if(!boost::filesystem::exists(realPath))
   {
@@ -160,6 +159,8 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
   return true;
 }
 
+//负责组织响应信息和保存文件数据
+//利用多进程的方式组织响应信息和保存文件数据
 bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
 {
   //创建两个管道负责进程间通讯
@@ -171,7 +172,7 @@ bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
     std::cerr << "create pipe error" << std::endl;
     return false;
   }
-  //利用子进程解析正文
+  //利用子进程解析正文并存储数据文件数据
   int pid = fork();
   if(pid < 0)
   {
@@ -206,6 +207,8 @@ bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
   close(pipe_out[0]);
   //通过管道写入正文
   write(pipe_out[1], &req._body[0], req._body.size());
+
+  //接收返回数据
   while(1)
   {
     char buf[1024] = {0};

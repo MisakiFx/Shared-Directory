@@ -69,7 +69,7 @@ bool Epoll::Wait(std::vector<TcpSocket>& list, int timeout)
   }
   else if(nfds == 0)
   {
-    std::cerr << "epoll monitor timeout" << std::endl;
+    //std::cerr << "epoll monitor timeout" << std::endl;
     return false;
   }
   for(int i = 0; i < nfds; i++)
