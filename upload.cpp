@@ -34,16 +34,19 @@ bool headerParse(const std::string& header, Boundary& file)
   boost::split(list, header, boost::is_any_of("\r\n"), boost::token_compress_on);
   for(size_t i = 0; i < list.size(); i++)
   {
+    std::cerr << "-----[" << list[i] << "]" << std::endl;
     std::string sep = ": ";
     size_t pos = list[i].find(sep);
     if(pos == std::string::npos)
     {
+      std::cerr << "find : error" << std::endl;
       return false;
     }
     std::string key = list[i].substr(0, pos);
     std::string value = list[i].substr(pos + sep.size());
     if(key != "Content-Disposition")
     {
+      std::cerr << "can not find disposition" << std::endl;
       continue;
     }
     std::string name_filed = "fileupload";
@@ -52,17 +55,20 @@ bool headerParse(const std::string& header, Boundary& file)
     pos = value.find(name_filed);
     if(pos == std::string::npos)
     {
+      std::cerr << "have no fileupload filed" << std::endl;
       continue;
     }
     pos = value.find(filename_sep);
     if(pos == std::string::npos)
     {
+      std::cerr << "have no filename" << std::endl;
       return false;
     }
     pos += filename_sep.size();
     size_t next_pos = value.find("\"", pos);
     if(next_pos == std::string::npos)
     {
+      std::cerr << "have no \"" << std::endl;
       return false;
     }
     file._fileName = value.substr(pos, next_pos - pos);
@@ -99,24 +105,24 @@ bool BoundaryParse(const std::string& body, std::vector<Boundary>& list)
     std::cerr << "first boundary error" << std::endl;
     return false;
   }
-  next_pos = first_pos + first_boundary.size();
+  first_pos += first_boundary.size();
   while(first_pos < body.size())
   {
-    first_pos = body.find(tail, next_pos);
-    if(first_pos == std::string::npos)
+    next_pos = body.find(tail, first_pos);//头部结尾
+    if (next_pos == std::string::npos)
     {
       return false;
     }
     std::string header = body.substr(first_pos, next_pos - first_pos);
-    next_pos = first_pos + tail.size();
-    first_pos = body.find(middle_boundary, next_pos);
-    if(first_pos == std::string::npos)
+    first_pos = next_pos + tail.size();//数据起始地址
+    next_pos = body.find(middle_boundary, first_pos);//数据结束位置
+    if(next_pos == std::string::npos)
     {
       return false;
     }
-    int64_t offset = next_pos;
-    int64_t length = first_pos - next_pos;
-    next_pos = first_pos + middle_boundary.size();
+    int64_t offset = first_pos;
+    int64_t length = next_pos - first_pos;
+    next_pos += middle_boundary.size();
     first_pos = body.find(craf, next_pos);
     std::cerr << "**body:[" << body.substr(offset, length) << "]" << std::endl;
     if(first_pos == std::string::npos)
