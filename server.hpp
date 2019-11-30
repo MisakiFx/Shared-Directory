@@ -47,6 +47,10 @@ class Server
 
 bool Server::Start(int port)
 {
+  if(!boost::filesystem::exists(ROOT))
+  {
+    boost::filesystem::create_directory(ROOT);
+  }
   bool ret = _lst_sock.SocketInit(port);
   if(ret == false)
   {
@@ -128,7 +132,7 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
 {
   //请求分析，执行请求，组织响应信息
   std::string realPath = ROOT + req._path;
-  if(!boost::filesystem::exists(realPath))
+  if(!boost::filesystem::exists(realPath) && realPath != "./BakeUpDir/upload")
   {
     rsp._status = 404;
     std::cerr << "no file" << std::endl;
@@ -238,7 +242,7 @@ bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
       setenv(e.first.c_str(), e.second.c_str(), 1);
     }
 
-    std::string realPath = ROOT + req._path;
+    std::string realPath = "." + req._path;
     execl(realPath.c_str(), realPath.c_str(), nullptr);
     exit(0);
   }
