@@ -40,16 +40,7 @@ class TcpSocket
     bool Recv(std::string& buf, int len);
 
     //发送数据
-    bool Send(const std::string& buf)
-    {
-      int ret = send(_sockfd, &buf[0], buf.size(), 0);
-      if(ret < 0)
-      {
-        std::cerr << "Send Error" << std::endl;
-        return false;
-      }
-      return true;
-    }
+    bool Send(const std::string& buf);
   
     //关闭套接字
     bool Close();
@@ -97,6 +88,27 @@ bool TcpSocket::SocketInit(int port)
     std::cerr << "listen error" << std::endl;
     close(_sockfd);
     return false;
+  }
+  return true;
+}
+
+bool TcpSocket::Send(const std::string& buf)
+{
+  int64_t slen = 0;
+  while(slen < buf.size())
+  {
+    int ret = send(_sockfd, &buf[slen], buf.size() - slen, 0);
+    if(ret < 0)
+    {
+      if(errno == EAGAIN)
+      {
+        usleep(1000);
+        continue;
+      }
+      std::cerr << "Send Error" << std::endl;
+      return false;
+    }
+    slen += ret;
   }
   return true;
 }

@@ -34,7 +34,7 @@ bool headerParse(const std::string& header, Boundary& file)
   boost::split(list, header, boost::is_any_of("\r\n"), boost::token_compress_on);
   for(size_t i = 0; i < list.size(); i++)
   {
-    std::cerr << "-----[" << list[i] << "]" << std::endl;
+    //std::cerr << "-----[" << list[i] << "]" << std::endl;
     std::string sep = ": ";
     size_t pos = list[i].find(sep);
     if(pos == std::string::npos)
@@ -108,7 +108,7 @@ bool BoundaryParse(const std::string& body, std::vector<Boundary>& list)
   first_pos += first_boundary.size();
   while(first_pos < body.size())
   {
-    next_pos = body.find(tail, first_pos);//头部结尾
+    next_pos = body.find(tail, first_pos);//头部结
     if (next_pos == std::string::npos)
     {
       return false;
@@ -124,7 +124,7 @@ bool BoundaryParse(const std::string& body, std::vector<Boundary>& list)
     int64_t length = next_pos - first_pos;
     next_pos += middle_boundary.size();
     first_pos = body.find(craf, next_pos);
-    std::cerr << "**body:[" << body.substr(offset, length) << "]" << std::endl;
+    //std::cerr << "**body:[" << body.substr(offset, length) << "]" << std::endl;
     if(first_pos == std::string::npos)
     {
       return false;
@@ -163,7 +163,7 @@ bool StorageFile(std::string& body, std::vector<Boundary>& list)
       std::cerr << "open file " << realpath << " error" << std::endl;
       return false;
     }
-    std::cerr << "--body:[" << body.substr(list[i]._start_addr, list[i]._data_len) << std::endl;
+    //std::cerr << "--body:[" << body.substr(list[i]._start_addr, list[i]._data_len) << std::endl;
     file.write(&body[list[i]._start_addr], list[i]._data_len);
     //写入失败
     if(!file.good())

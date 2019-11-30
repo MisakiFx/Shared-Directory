@@ -64,6 +64,8 @@ std::string HttpResponse::GetDesc()
       return "Not Found";
     case 200:
       return "OK";
+    case 206:
+      return "Partial Content";
   }
   return "UnKnow";
 }

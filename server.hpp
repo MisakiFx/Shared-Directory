@@ -6,6 +6,7 @@
 #include "epollwait.hpp"
 #include "threadpool.hpp"
 #include <boost/filesystem.hpp>
+#include <fstream>
 #include "http.hpp"
 #define ROOT "./BakeUpDir"
 /***************************************************/
@@ -27,8 +28,15 @@ class Server
     //目录列表请求
     static bool ListShow(const std::string& path, std::string& body);
 
+    //文件上传处理
     //利用外部程序解析上传文件时的正文数据，拿到文件数据
     static bool CGIProcess(const HttpRequest& req, HttpResponse& rsp);
+
+    //文件下载处理
+    static bool Download(const std::string& path, std::string& body);
+
+    //支持断点续传，范围下载处理
+    static bool RangeDownload(const std::string& path, const std::string& range, std::string& body);
   private:
 
     TcpSocket _lst_sock;  //监听套接字
@@ -135,6 +143,7 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
     //}
     //std::cout << "body:[" << req._body << "]" << std::endl;
     CGIProcess(req, rsp);
+    rsp.SetHeader("Content-Type", "text/html");
   }
   //文件下载或者目录列表请求
   else 
@@ -152,7 +161,37 @@ bool Server::HttpProcess(const HttpRequest& req, HttpResponse& rsp)
     //文件下载请求
     else 
     {
-
+      //为了支持断点续传
+      auto it = req._headers.find("Range");
+      if(it == req._headers.end())
+      {
+        Download(realPath, rsp._body);
+        rsp.SetHeader("Content-Type", "application/octet-stream");
+        rsp.SetHeader("Accept-Ranges", "bytes");
+        rsp.SetHeader("Etag", "abcdefg");
+        rsp._status = 200;
+      }
+      else 
+      {
+        std::string range = it->second;
+        RangeDownload(realPath, range, rsp._body);
+        rsp.SetHeader("Content-Type", "application/octet-stream");
+        std::string unit = "bytes=";
+        size_t pos = range.find(unit);
+        if(pos == std::string::npos)
+        {
+          return false;
+        }
+        std::stringstream temp;
+        temp << "bytes ";
+        temp << range.substr(pos + unit.size());
+        temp << "/";
+        int64_t len = boost::filesystem::file_size(realPath);
+        temp << len;
+        rsp.SetHeader("Content-Range", temp.str());
+        rsp._status = 206;
+        return true;
+      }
     }
   }
   rsp._status = 200;
@@ -223,6 +262,7 @@ bool Server::CGIProcess(const HttpRequest& req, HttpResponse& rsp)
   }
   close(pipe_in[0]);
   close(pipe_out[1]);
+  rsp._status = 200;
   return true;
 }
 
@@ -286,5 +326,73 @@ bool Server::ListShow(const std::string& path, std::string& body)
 
   ss << "</ol></div><hr /></div></body></html>";
   body = ss.str();
+  return true;
+}
+bool Server::Download(const std::string& path, std::string& body)
+{
+  int64_t filesize = boost::filesystem::file_size(path);
+  body.resize(filesize);
+  std::ifstream file(path);
+  if(!file.is_open())
+  {
+    std::cerr << "open file err" << std::endl;
+    return false;
+  }
+  file.read(&body[0], filesize);
+  if(!file.good())
+  {
+    std::cerr << "read file data error" << std::endl;
+    file.close();
+    return false;
+  }
+  file.close();
+  return true;
+}
+bool Server::RangeDownload(const std::string& path, const std::string& range, std::string& body)
+{
+  std::string unit = "bytes=";
+  size_t pos = range.find(unit);
+  if(pos == std::string::npos)
+  {
+    return false;
+  }
+  pos += unit.size();
+  size_t pos2 = range.find("-", pos);
+  if(pos2 == std::string::npos)
+  {
+    return false;
+  }
+  std::string start = range.substr(pos, pos2 - pos);
+  std::string end = range.substr(pos2 + 1);
+  std::stringstream ss;
+  int64_t digit_start, digit_end;
+  ss << start;
+  ss >> digit_start;
+  ss.clear();
+  if(end.size() == 0)
+  {
+    digit_end = boost::filesystem::file_size(path) - 1;
+  }
+  else 
+  {
+    ss << end;
+    ss >> digit_end;
+  }
+  int64_t len = digit_end - digit_start + 1;
+  body.resize(len);
+  std::ifstream file(path);
+  if(!file.is_open())
+  {
+    return false;
+  }
+  file.seekg(digit_start, std::ios::beg);
+  file.read(&body[0], len);
+  if(!file.good())
+  {
+    std::cerr << "read error" << std::endl;
+    file.close();
+    return false;
+  }
+  file.close();
   return true;
 }
